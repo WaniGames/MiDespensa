@@ -75,7 +75,7 @@ const rowToProduct = r => ({
   price:parseFloat(r.price)||0, category:r.category||"otros", unit:r.unit||"ud",
   minStock:r.min_stock||2, emoji:r.emoji||"📦", supermarket:r.supermarket||"",
   brand:r.brand||"", brandCustom:r.brand_custom||"", stock:r.stock||0,
-  createdAt:r.created_at, expiryDate:r.expiry_date||null,
+  createdAt:r.created_at, expiryDate:r.expiry_date||null, addedBy:r.added_by||null,
 });
 const rowToMember  = r => ({ id:r.id, pantryId:r.pantry_id, name:r.name, joined:r.joined||"" });
 const rowToShopItem = r => ({ id:r.id, pantryId:r.pantry_id, name:r.name, emoji:r.emoji||"📦", createdAt:r.created_at });
@@ -113,6 +113,10 @@ export default function App() {
   const [shopInput,       setShopInput]       = useState("");
   const [recipes,         setRecipes]         = useState([]);
   const [recipesLoading,  setRecipesLoading]  = useState(false);
+  // ── Identidad del usuario activo ──────────────────────────────────────
+  const [currentUser, setCurrentUser]         = useState(() => localStorage.getItem("midespensa-user") || "");
+  const [askingName,  setAskingName]          = useState(false);
+  const [userInput,   setUserInput]           = useState("");
 
   const videoRef    = useRef(null);
   const streamRef   = useRef(null);
@@ -125,8 +129,12 @@ export default function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem(PANTRY_KEY);
-    if (saved) { setPantryId(saved); setScreen("app"); }
-    else setScreen("setup");
+    const user  = localStorage.getItem("midespensa-user");
+    if (saved) {
+      setPantryId(saved);
+      setScreen("app");
+      if (!user) { setAskingName(true); setTab("grupo"); }
+    } else setScreen("setup");
   }, []);
 
   useEffect(() => {
@@ -184,6 +192,7 @@ export default function App() {
     if (error) { setSetupError("Error al crear la despensa. Inténtalo de nuevo."); setSetupLoading(false); return; }
     localStorage.setItem(PANTRY_KEY, id);
     setPantryId(id); setPantryName(name); setScreen("app"); setSetupLoading(false);
+    setAskingName(true); setTab("grupo");
   };
 
   const handleJoin = async () => {
@@ -194,12 +203,24 @@ export default function App() {
     if (error || !data) { setSetupError("Código no encontrado. Revísalo con quien te lo compartió."); setSetupLoading(false); return; }
     localStorage.setItem(PANTRY_KEY, data.id);
     setPantryId(data.id); setPantryName(data.name); setScreen("app"); setSetupLoading(false);
+    setAskingName(true); setTab("grupo");
   };
 
   const leavePantry = () => {
     if (!confirm("¿Salir de esta despensa? Podrás volver a unirte con el código.")) return;
     localStorage.removeItem(PANTRY_KEY);
-    setPantryId(null); setProducts([]); setMembers([]); setManualShopItems([]); setScreen("setup");
+    localStorage.removeItem("midespensa-user");
+    setCurrentUser(""); setPantryId(null); setProducts([]); setMembers([]); setManualShopItems([]); setScreen("setup");
+  };
+
+  const saveUserName = () => {
+    const name = userInput.trim();
+    if (!name) return;
+    localStorage.setItem("midespensa-user", name);
+    setCurrentUser(name);
+    setAskingName(false);
+    setUserInput("");
+    notify(`¡Hola, ${name}! 👋`);
   };
 
   // ── Stock ──────────────────────────────────────────────────────────────
@@ -227,6 +248,7 @@ export default function App() {
       emoji:form.emoji, supermarket:form.supermarket, brand:form.brand,
       brand_custom:form.brandCustom, pantry_id:pantryId,
       expiry_date: form.expiryDate || null,
+      added_by: currentUser || null,
     };
     if (modal==="edit" && editId) {
       setProducts(prev => prev.map(p => p.id===editId ? {...p, ...rowToProduct({...row, id:editId, pantry_id:pantryId, stock:p.stock, created_at:p.createdAt})} : p));
@@ -487,12 +509,13 @@ export default function App() {
     .cam-btn:hover{background:#3C6B1E}
     .ok-btn{padding:.5rem .85rem;background:#4D7C30;color:white;border:none;border-radius:9px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;flex-shrink:0}
     .bc-hint{font-size:.68rem;color:#4D7C30;margin-top:.4rem}
-    .srow{display:flex;gap:.6rem;margin-bottom:.85rem;align-items:center}
-    .sin{flex:1;padding:.55rem .9rem;border:1.5px solid #D4CEBC;border-radius:10px;background:white;font-family:'Nunito',sans-serif;font-size:.88rem;outline:none}
+    .srow{display:flex;gap:.6rem;margin-bottom:.85rem;align-items:center;flex-wrap:wrap}
+    .sin{flex:1;min-width:0;padding:.55rem .9rem;border:1.5px solid #D4CEBC;border-radius:10px;background:white;font-family:'Nunito',sans-serif;font-size:.88rem;outline:none}
     .sin:focus{border-color:#2D5016}
-    .sort-sel{padding:.55rem .6rem;border:1.5px solid #D4CEBC;border-radius:10px;background:white;font-family:'Nunito',sans-serif;font-size:.82rem;outline:none;cursor:pointer}
-    .btn-new{padding:.55rem 1.1rem;background:#2D5016;color:white;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap}
+    .sort-sel{padding:.55rem .6rem;border:1.5px solid #D4CEBC;border-radius:10px;background:white;font-family:'Nunito',sans-serif;font-size:.82rem;outline:none;cursor:pointer;flex-shrink:0}
+    .btn-new{padding:.55rem 1.1rem;background:#2D5016;color:white;border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap;flex-shrink:0}
     .btn-new:hover{background:#3C6B1E}
+    @media(max-width:400px){.srow{flex-wrap:wrap}.sin{width:100%}.sort-sel,.btn-new{flex:1}}
     .chips{display:flex;gap:.4rem;margin-bottom:1rem;overflow-x:auto;padding-bottom:2px}
     .chip{padding:.3rem .85rem;border-radius:20px;border:1.5px solid #D4CEBC;background:white;cursor:pointer;font-size:.78rem;font-family:'Nunito',sans-serif;font-weight:600;white-space:nowrap;transition:all .18s}
     .chip.on{background:#2D5016;color:white;border-color:#2D5016}
@@ -729,6 +752,7 @@ export default function App() {
             <div className="hdr-right">
               <div className={`sync-dot ${syncing?"syncing":""}`}/>
               <span className="sync-label">{syncing?"Sincronizando…":"En tiempo real"}</span>
+              {currentUser&&<span style={{fontSize:".68rem",color:"#9DC183",fontWeight:700}}>👤 {currentUser}</span>}
               <button className="share-btn" onClick={()=>setShowShare(true)}>🔑 Compartir</button>
             </div>
           </div>
@@ -772,7 +796,6 @@ export default function App() {
               <div className="bc-row">
                 <input className="bc-in" placeholder="O escribe el código manualmente…" value={barcode} onChange={e=>setBarcode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleBarcodeInput()}/>
                 <button className="cam-btn" onClick={openCamera}>📷 Cámara</button>
-                <button className="ok-btn" onClick={()=>handleBarcodeInput()}>+1</button>
               </div>
               <div className="bc-hint">📱 Pulsa "Cámara" para escanear con el móvil — detección automática</div>
             </div>
@@ -811,6 +834,7 @@ export default function App() {
                       </div>}
                       <div className="p-cat">{CATEGORIES.find(c=>c.id===p.category)?.emoji} {CATEGORIES.find(c=>c.id===p.category)?.label||"Otros"}</div>
                       {p.price>0&&<div className="p-price">{p.price.toFixed(2)} € / {p.unit||"ud"}</div>}
+                      {p.addedBy&&<div style={{fontSize:".6rem",color:"#6B7260",marginTop:".15rem"}}>👤 {p.addedBy}</div>}
                       <div className="sc">
                         <button className="sbtn sm" onClick={()=>updateStock(p.id,-1)}>−</button>
                         <div><div className="snum-big">{s}</div><div className="sunit">{p.unit||"ud"}</div></div>
@@ -1159,6 +1183,27 @@ export default function App() {
               {camState==="error" ? <div className="cam-err"><strong>No se pudo abrir la cámara</strong>{camError}<br/><button className="cam-err-btn" onClick={stopCamera}>Cerrar</button></div>
               : camState==="loading" ? <div className="cam-loading"><div className="spinner"/>Solicitando acceso a la cámara…</div>
               : <><div className="cam-vp"><video ref={videoRef} className="cam-video" playsInline muted/><div className="cam-overlay"><div className="cam-frame"><div className="cam-scan-line"/></div></div></div><div className="cam-tip">Centra el código dentro del recuadro<br/>🟢 Detección automática</div></>}
+            </div>
+          </div>
+        )}
+
+        {/* ── OVERLAY: Identificación de usuario ──────────────────────── */}
+        {askingName && (
+          <div className="share-ov">
+            <div className="share-card">
+              <div className="share-title">👋 ¿Cómo te llamas?</div>
+              <div className="share-sub">Tu nombre aparecerá cuando añadas productos a la despensa.</div>
+              <input
+                className="setup-input normal"
+                placeholder="Tu nombre…"
+                value={userInput}
+                onChange={e=>setUserInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveUserName()}
+                style={{marginBottom:"1rem",textAlign:"center",fontSize:"1.1rem"}}
+                autoFocus
+              />
+              <button className="share-copy" onClick={saveUserName} disabled={!userInput.trim()}>Guardar →</button>
+              <button className="share-close" onClick={()=>setAskingName(false)}>Saltar</button>
             </div>
           </div>
         )}
