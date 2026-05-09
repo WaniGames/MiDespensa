@@ -475,16 +475,15 @@ export default function App() {
     .setup-hint strong{color:#2D5016}
 
     .hdr{background:#2D5016;padding:0.9rem 1.25rem 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.18)}
-    .hdr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem}
-    .logo{font-family:'Lora',serif;font-size:1.35rem;font-weight:700;color:#E8D9A8}
+    .hdr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;gap:.5rem}
+    .logo{font-family:'Lora',serif;font-size:1.25rem;font-weight:700;color:#E8D9A8;flex-shrink:0}
     .logo em{color:#9DC183;font-style:normal}
-    .logo-v{font-size:.62rem;font-weight:700;background:rgba(255,255,255,.18);color:#E8D9A8;border-radius:6px;padding:.1rem .42rem;margin-left:.45rem;vertical-align:middle}
-    .hdr-right{display:flex;align-items:center;gap:0.5rem}
-    .sync-dot{width:7px;height:7px;border-radius:50%;background:#4CAF50;transition:background .3s;flex-shrink:0}
+    .hdr-right{display:flex;align-items:center;gap:0.45rem;flex-shrink:0}
+    .sync-dot{width:6px;height:6px;border-radius:50%;background:#4CAF50;transition:background .3s;flex-shrink:0}
     .sync-dot.syncing{background:#F59E0B;animation:blink .6s infinite}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-    .sync-label{font-size:0.7rem;color:#9DC183;white-space:nowrap}
-    .share-btn{padding:0.3rem 0.65rem;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#E8D9A8;font-family:'Nunito',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap}
+    .sync-label{font-size:0.68rem;color:#9DC183;white-space:nowrap}
+    .share-btn{padding:0.28rem 0.6rem;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#E8D9A8;font-family:'Nunito',sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;white-space:nowrap}
     .share-btn:hover{background:rgba(255,255,255,.25)}
     .tabs{display:flex;overflow-x:auto}
     .tab{flex:1;padding:0.5rem 0.3rem 0.7rem;border:none;background:transparent;cursor:pointer;font-family:'Nunito',sans-serif;font-size:0.74rem;font-weight:600;color:#7FAF63;border-bottom:2.5px solid transparent;transition:all .2s;white-space:nowrap;min-width:0}
@@ -748,11 +747,11 @@ export default function App() {
         {/* ── HEADER ──────────────────────────────────────────────────── */}
         <div className="hdr">
           <div className="hdr-top">
-            <div className="logo">mi<em>Despensa</em><span className="logo-v">v2</span></div>
+            <div className="logo">mi<em>Despensa</em></div>
             <div className="hdr-right">
               <div className={`sync-dot ${syncing?"syncing":""}`}/>
               <span className="sync-label">{syncing?"Sincronizando…":"En tiempo real"}</span>
-              {currentUser&&<span style={{fontSize:".68rem",color:"#9DC183",fontWeight:700}}>👤 {currentUser}</span>}
+              {currentUser&&<span style={{fontSize:".68rem",color:"#9DC183",fontWeight:700,whiteSpace:"nowrap"}}>👤 {currentUser}</span>}
               <button className="share-btn" onClick={()=>setShowShare(true)}>🔑 Compartir</button>
             </div>
           </div>
