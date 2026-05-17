@@ -4,18 +4,36 @@ import { supabase } from "./supabase.js";
 const PANTRY_KEY = "midespensa-pantry-id";
 
 const CATEGORIES = [
-  { id:"todas",     label:"Todas",     emoji:"🏪" },
-  { id:"lacteos",   label:"Lácteos",   emoji:"🥛" },
-  { id:"carnes",    label:"Carnes",    emoji:"🥩" },
-  { id:"verduras",  label:"Verduras",  emoji:"🥦" },
-  { id:"frutas",    label:"Frutas",    emoji:"🍎" },
-  { id:"cereales",  label:"Cereales",  emoji:"🌾" },
-  { id:"conservas", label:"Conservas", emoji:"🥫" },
-  { id:"bebidas",   label:"Bebidas",   emoji:"🍶" },
-  { id:"limpieza",  label:"Limpieza",  emoji:"🧹" },
-  { id:"otros",     label:"Otros",     emoji:"📦" },
+  { id:"todas",      label:"Todas",       emoji:"🏪" },
+  { id:"lacteos",    label:"Lácteos",     emoji:"🥛" },
+  { id:"carnes",     label:"Carnes",      emoji:"🥩" },
+  { id:"verduras",   label:"Verduras",    emoji:"🥦" },
+  { id:"frutas",     label:"Frutas",      emoji:"🍎" },
+  { id:"cereales",   label:"Cereales",    emoji:"🌾" },
+  { id:"pan",        label:"Pan",         emoji:"🍞" },
+  { id:"pasta",      label:"Pasta/Arroz", emoji:"🍝" },
+  { id:"legumbres",  label:"Legumbres",   emoji:"🫘" },
+  { id:"conservas",  label:"Conservas",   emoji:"🥫" },
+  { id:"encurtidos", label:"Encurtidos",  emoji:"🫙" },
+  { id:"congelados", label:"Congelados",  emoji:"🧊" },
+  { id:"huevos",     label:"Huevos",      emoji:"🥚" },
+  { id:"cafe",       label:"Café/Té",     emoji:"☕" },
+  { id:"refrescos",  label:"Refrescos",   emoji:"🥤" },
+  { id:"energeticas",label:"Energéticas", emoji:"⚡" },
+  { id:"agua",       label:"Agua",        emoji:"💧" },
+  { id:"zumos",      label:"Zumos",       emoji:"🧃" },
+  { id:"alcohol",    label:"Alcohol",     emoji:"🍺" },
+  { id:"snacks",     label:"Snacks",      emoji:"🍿" },
+  { id:"dulces",     label:"Dulces",      emoji:"🍫" },
+  { id:"salsas",     label:"Salsas",      emoji:"🫙" },
+  { id:"aceites",    label:"Aceites",     emoji:"🫒" },
+  { id:"especias",   label:"Especias",    emoji:"🧂" },
+  { id:"limpieza",   label:"Limpieza",    emoji:"🧹" },
+  { id:"higiene",    label:"Higiene",     emoji:"🧴" },
+  { id:"mascotas",   label:"Mascotas",    emoji:"🐾" },
+  { id:"otros",      label:"Otros",       emoji:"📦" },
 ];
-const EMOJIS = ["📦","🥛","🧀","🥚","🥩","🍗","🐟","🥦","🥕","🍅","🍎","🍌","🌾","🍞","🥫","🧴","🍶","🧹","🧼","🍫","🫙","🥤","🧈","🧆","🍳","🫒","🫑","🧅","🥑","🫐"];
+const EMOJIS = ["📦","🥛","🧀","🥚","🥩","🍗","🐟","🥦","🥕","🍅","🍎","🍌","🍋","🍊","🍇","🫐","🥑","🌾","🍞","🥐","🍝","🍚","🫘","🥫","🫙","🧊","☕","🍵","🧉","🥤","⚡","💧","🧃","🍺","🍷","🥂","🍿","🍫","🍬","🍭","🧁","🍰","🥜","🧂","🫒","🧴","🧹","🧼","🧻","🐾","🪴"];
 const UNITS = ["ud","kg","g","L","ml","pack","bote","lata","bolsa","docena"];
 const SUPERMARKETS = [
   { id:"mercadona", label:"Mercadona",       color:"#00904A", bg:"#E6F5EE" },
@@ -231,12 +249,60 @@ export default function App() {
     await supabase.from("products").update({ stock: newStock }).eq("id", id);
   };
 
-  const handleBarcodeInput = (code) => {
+  const handleBarcodeInput = async (code) => {
     const bc = (code||barcode).trim(); if (!bc) return;
-    const found = productsRef.current.find(p => p.barcode===bc);
-    if (found) { updateStock(found.id, 1); notify(`+1 ${found.name} 📦`); }
-    else { openAdd({ barcode: bc }); notify("Código nuevo — crea la ficha del producto 📋","info"); }
     setBarcode("");
+    // Si ya existe en catálogo, suma stock
+    const found = productsRef.current.find(p => p.barcode===bc);
+    if (found) { updateStock(found.id, 1); notify(`+1 ${found.name} 📦`); return; }
+    // Buscar en OpenFoodFacts
+    notify("Buscando producto…","info");
+    try {
+      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${bc}.json`);
+      const data = await res.json();
+      if (data.status === 1) {
+        const p = data.product;
+        const rawName = p.product_name_es || p.product_name || p.abbreviated_product_name || "";
+        const name = rawName.trim();
+        const brand = p.brands?.split(",")[0]?.trim() || "";
+        // Mapear categorías OFF → nuestras categorías
+        const tags = (p.categories_tags||[]).join(" ");
+        let category = "otros";
+        if (/dairy|lacteo|leche|yogur|queso/.test(tags))     category = "lacteos";
+        else if (/meat|carne|pollo|jam/.test(tags))           category = "carnes";
+        else if (/fish|pescado|mariscos/.test(tags))          category = "carnes";
+        else if (/vegetable|verdura|hortaliza/.test(tags))    category = "verduras";
+        else if (/fruit|fruta/.test(tags))                    category = "frutas";
+        else if (/cereal|muesli/.test(tags))                  category = "cereales";
+        else if (/bread|pan|bakery/.test(tags))               category = "pan";
+        else if (/pasta|rice|arroz|noodle/.test(tags))        category = "pasta";
+        else if (/legum|bean|lentil|garbanzo/.test(tags))     category = "legumbres";
+        else if (/conserv|canned|tin/.test(tags))             category = "conservas";
+        else if (/pickle|encurtido|vinegar/.test(tags))       category = "encurtidos";
+        else if (/frozen|congel/.test(tags))                  category = "congelados";
+        else if (/egg|huevo/.test(tags))                      category = "huevos";
+        else if (/coffee|cafe|tea|te|infusion/.test(tags))    category = "cafe";
+        else if (/soda|refres|cola|limon/.test(tags))         category = "refrescos";
+        else if (/energy|energeti/.test(tags))                category = "energeticas";
+        else if (/water|agua/.test(tags))                     category = "agua";
+        else if (/juice|zumo|nectar/.test(tags))              category = "zumos";
+        else if (/beer|wine|alcohol|spirit/.test(tags))       category = "alcohol";
+        else if (/snack|chip|crisp|palomita/.test(tags))      category = "snacks";
+        else if (/chocolate|candy|sweet|dulce/.test(tags))    category = "dulces";
+        else if (/sauce|salsa|ketchup|mustard/.test(tags))    category = "salsas";
+        else if (/oil|aceite|vinagre/.test(tags))             category = "aceites";
+        else if (/spice|especia|herb/.test(tags))             category = "especias";
+        openAdd({ barcode: bc, name, brand, category });
+        if (name) notify(`✅ Encontrado: ${name}`, "info");
+        else notify("Código encontrado — completa la ficha 📋","info");
+      } else {
+        openAdd({ barcode: bc });
+        notify("Código nuevo — crea la ficha del producto 📋","info");
+      }
+    } catch {
+      openAdd({ barcode: bc });
+      notify("Sin conexión — crea la ficha manualmente 📋","info");
+    }
   };
 
   // ── CRUD productos (ahora guarda expiry_date) ─────────────────────────
@@ -519,29 +585,33 @@ export default function App() {
     .chip{padding:.3rem .85rem;border-radius:20px;border:1.5px solid #D4CEBC;background:white;cursor:pointer;font-size:.78rem;font-family:'Nunito',sans-serif;font-weight:600;white-space:nowrap;transition:all .18s}
     .chip.on{background:#2D5016;color:white;border-color:#2D5016}
 
-    .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.85rem}
-    .pcard{background:white;border-radius:14px;padding:1rem;border:1.5px solid #EAE4D8;transition:all .2s;position:relative}
-    .pcard:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.09)}
+    .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem}
+    .pcard{background:white;border-radius:12px;padding:.75rem;border:1.5px solid #EAE4D8;transition:all .2s;position:relative}
+    .pcard:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,0,0,.08)}
     .pcard.out{border-style:dashed;opacity:.62}
     .pcard.low{border-color:#D4860A}
     .pcard.exp-crit{border-color:#FECACA !important;border-width:2px;border-style:solid !important;opacity:1 !important}
     .pcard.exp-warn{border-color:#FDE68A;border-width:2px}
-    .pcard-badge{position:absolute;top:.55rem;right:.55rem;font-size:.65rem;padding:.18rem .5rem;border-radius:8px;font-weight:700}
+    .pcard-badge{position:absolute;top:.45rem;right:.45rem;font-size:.6rem;padding:.14rem .42rem;border-radius:7px;font-weight:700}
     .badge-out{background:#FEE2E2;color:#B91C1C} .badge-low{background:#FEF3C7;color:#92400E}
-    .p-emoji{font-size:2rem;margin-bottom:.4rem} .p-name{font-weight:700;font-size:.92rem;line-height:1.3;margin-bottom:.15rem}
-    .p-cat{font-size:.7rem;color:#6B7260} .p-price{font-size:.72rem;color:#B07D10;font-weight:700;margin-top:.1rem}
-    .exp-badge{font-size:.63rem;font-weight:700;padding:.16rem .48rem;border-radius:6px;display:inline-block;margin-top:.32rem}
+    .pcard-top{cursor:pointer;padding-bottom:.4rem;border-bottom:1px solid #F0EDE6;margin-bottom:.4rem;-webkit-tap-highlight-color:transparent;position:relative}
+    .pcard-top::after{content:"✎ editar";position:absolute;bottom:.1rem;right:0;font-size:.55rem;color:#C4BFB4;opacity:0;transition:opacity .2s}
+    .pcard:hover .pcard-top::after{opacity:1}
+    .pcard-top:active{opacity:.75}
+    .p-emoji{font-size:1.6rem;margin-bottom:.2rem}
+    .p-name{font-weight:700;font-size:.85rem;line-height:1.25;margin-bottom:.1rem}
+    .p-cat{font-size:.65rem;color:#6B7260}
+    .p-price{font-size:.67rem;color:#B07D10;font-weight:700;margin-top:.05rem}
+    .exp-badge{font-size:.6rem;font-weight:700;padding:.12rem .4rem;border-radius:6px;display:inline-block;margin-top:.2rem}
     .exp-red{background:#FEE2E2;color:#B91C1C}
     .exp-amber{background:#FEF3C7;color:#92400E}
     .exp-green{background:#D1FAE5;color:#065F46}
-    .sc{display:flex;align-items:center;justify-content:space-between;margin-top:.6rem}
-    .sbtn{width:32px;height:32px;border-radius:8px;border:none;cursor:pointer;font-size:1.1rem;font-weight:800;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .sc{display:flex;align-items:center;justify-content:space-between;margin-top:.35rem}
+    .sbtn{width:30px;height:30px;border-radius:8px;border:none;cursor:pointer;font-size:1rem;font-weight:800;display:flex;align-items:center;justify-content:center;transition:all .15s}
     .sm{background:#FEE2E2;color:#DC2626}.sm:hover{background:#DC2626;color:white}
     .sp{background:#DCFCE7;color:#15803D}.sp:hover{background:#15803D;color:white}
-    .snum-big{font-family:'Lora',serif;font-size:1.5rem;font-weight:700;color:#2D5016;text-align:center;min-width:2.2rem}
-    .sunit{font-size:.65rem;color:#6B7260;text-align:center}
-    .edit-fab{position:absolute;bottom:.5rem;right:.5rem;width:22px;height:22px;border-radius:6px;border:none;background:#F3F4F6;color:#6B7280;cursor:pointer;font-size:.72rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
-    .pcard:hover .edit-fab{opacity:1}
+    .snum-big{font-family:'Lora',serif;font-size:1.35rem;font-weight:700;color:#2D5016;text-align:center;min-width:2rem}
+    .sunit{font-size:.6rem;color:#6B7260;text-align:center}
 
     .citem{background:white;border-radius:12px;padding:.9rem 1rem;border:1.5px solid #EAE4D8;display:flex;align-items:center;gap:.85rem;margin-bottom:.65rem}
     .citem:hover{border-color:#B8D0A0}
@@ -825,21 +895,23 @@ export default function App() {
                       {isOut&&<span className="pcard-badge badge-out">Agotado</span>}
                       {isLow&&!isOut&&!ei&&<span className="pcard-badge badge-low">⚠ Bajo</span>}
                       {ei&&!isOut&&<span className={`pcard-badge ${ei.cls}`}>{ei.label}</span>}
-                      <div className="p-emoji">{p.emoji||"📦"}</div>
-                      <div className="p-name">{p.name}</div>
-                      {(bName||sm)&&<div style={{display:"flex",gap:".3rem",flexWrap:"wrap",margin:".2rem 0 .1rem"}}>
-                        {bName&&<span style={{fontSize:".62rem",padding:".1rem .4rem",borderRadius:"6px",background:"#F0EAFA",color:"#6D28D9",fontWeight:700}}>{bName}</span>}
-                        {sm&&<span style={{fontSize:".62rem",padding:".1rem .4rem",borderRadius:"6px",background:sm.bg,color:sm.color,fontWeight:700}}>{sm.label}</span>}
-                      </div>}
-                      <div className="p-cat">{CATEGORIES.find(c=>c.id===p.category)?.emoji} {CATEGORIES.find(c=>c.id===p.category)?.label||"Otros"}</div>
-                      {p.price>0&&<div className="p-price">{p.price.toFixed(2)} € / {p.unit||"ud"}</div>}
-                      {p.addedBy&&<div style={{fontSize:".6rem",color:"#6B7260",marginTop:".15rem"}}>👤 {p.addedBy}</div>}
+                      <div className="pcard-top" onClick={()=>openEdit(p)} title="Toca para editar">
+                        <div className="p-emoji">{p.emoji||"📦"}</div>
+                        <div className="p-name">{p.name}</div>
+                        {(bName||sm)&&<div style={{display:"flex",gap:".25rem",flexWrap:"wrap",margin:".15rem 0 .05rem"}}>
+                          {bName&&<span style={{fontSize:".58rem",padding:".08rem .35rem",borderRadius:"5px",background:"#F0EAFA",color:"#6D28D9",fontWeight:700}}>{bName}</span>}
+                          {sm&&<span style={{fontSize:".58rem",padding:".08rem .35rem",borderRadius:"5px",background:sm.bg,color:sm.color,fontWeight:700}}>{sm.label}</span>}
+                        </div>}
+                        <div className="p-cat">{CATEGORIES.find(c=>c.id===p.category)?.emoji} {CATEGORIES.find(c=>c.id===p.category)?.label||"Otros"}</div>
+                        {p.price>0&&<div className="p-price">{p.price.toFixed(2)} € / {p.unit||"ud"}</div>}
+                        {p.addedBy&&<div style={{fontSize:".58rem",color:"#6B7260",marginTop:".1rem"}}>👤 {p.addedBy}</div>}
+                        {ei&&<span className={`exp-badge ${ei.cls}`}>{ei.label}</span>}
+                      </div>
                       <div className="sc">
                         <button className="sbtn sm" onClick={()=>updateStock(p.id,-1)}>−</button>
                         <div><div className="snum-big">{s}</div><div className="sunit">{p.unit||"ud"}</div></div>
                         <button className="sbtn sp" onClick={()=>updateStock(p.id,+1)}>+</button>
                       </div>
-                      <button className="edit-fab" onClick={()=>openEdit(p)}>✎</button>
                     </div>
                   );
                 })}
